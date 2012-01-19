@@ -1,0 +1,53 @@
+DESCRIPTION :
+The override module can add/remove/rename functions and methods at runtime before calling the user script. This is very useful in hosting environment with different users that should be isolated from each-other, or to protect the server from malicious scripts.
+
+Consider using the mod_suphp to fill potential security risks in multi-user hosting environment.
+
+INSTALL :
+1) copy the override.so in your php modules directory
+2) default configuration is : 
+	- enabled : true
+	- config : 
+3) configure the overrides
+
+CONFIGURATION :
+* enabled : [boolean] whether the module is enabled or not
+* config : [string] absolute path to the configuration filename
+
+SYNTAX :
+The configuration file is loaded at request start and may :
+    * eval a single line of code (flag +)
+	* remove a code function or class method (flag -)
+	* give a random name to a function or class method (flag #)
+
+Each line in the config file is interpreted at a time. In order to reference a class method, use the static notation (class::method).
+The 'flag' (+-#) character indicates which action to take and must be the first character of the line, else the line is ignored.
+Both flags '-' and '#' should be followed only by a function or method name.
+The flag '+' may be followed by any valid PHP code on one single line.
+You may call a previousely renamed function by prepending the original function name with '#' in the eval'd code.
+For a call of a renamed class method, do not forget the '$this->' statement.
+Calls to renamed classes only work in this configuration file and not in regular user script.
+If you want to alter a class constructor, make sure to use '__construct' as method name (not the class name itself).
+
+Example if you want to completely remove a function :
+-shell_exec
+-mysqli::kill
+
+Example if you want to eval some code :
++echo "Hello World!";
++function hello() { echo "Hello World!"; }
++function mysqli::hello() { echo "Hello World!"; }
+
+Example if you want to replace a function (remove it then re-create it) :
+-shell_exec
++function shell_exec($arg) { echo "No no!"; return false; }
+-mysqli::kill
++function mysqli::kill(){ echo "No no!"; }
+
+Example if you want to alter a function (rename it then re-create it and call the original) :
+#shell_exec
++function shell_exec($arg) { if( true ) return #shell_exec($arg); else return false; }
+#mysqli::kill
++function mysqli::kill() { if( true ) $this->#mysqli::kill(); else return; }
+
+-> See the template configuration file provided for best practices.
