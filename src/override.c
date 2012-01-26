@@ -1,9 +1,40 @@
 /*
   +---------------------------------------------------------------------+
-  | PHP Version 5 - Copyright (c) 1997-2007 The PHP Group		   |
+  | PHP Version 5 - Copyright (c) 1997-2007 The PHP Group               |
   +---------------------------------------------------------------------+
-  | Author: Simon Uyttendaele					   |
+  | Author: Simon Uyttendaele                                           |
+  | Parts of this source file may be subject to version 3.01 of the PHP |
+  | license. http://www.php.net/license/3_01.txt                        |
+  |                                                                     |
+  | Uncovered parts from the above license are subject to the FreeBSD   |
+  | license below with respective copyrights.                           |
   +---------------------------------------------------------------------+
+ 
+Copyright (c) 2012, Simon Uyttendaele <simon@olympe-network.com>
+Granted Copyright (c) 2012, Olympe Network <contact@olympe-network.com>
+Granted Copyright (c) 2012, SYS S.A.S. <contact@anotherservice.com>
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met: 
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer. 
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution. 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /* $Id: header,v 1.16.2.1.2.1 2007/01/01 19:32:09 iliaa Exp $ */
@@ -64,6 +95,7 @@ typedef char* string;
 #define false 0
 #define true 1
 int global_overridden = 0;
+int global_eval = 0;
 void load_config(char *filename);
 HashTable _replaced;
 void _replaced_destruct(void *pElement)
@@ -257,6 +289,7 @@ string substitute_random_function_names(string code)
 	regex_t *regex;
 	string match;
 	string replacement;
+	string mismatch;
 
 	regex = regex_prepare("(#[a-z_A-Z0-9:]*)\\s*\\(");
 	if( regex == NULL || code == NULL )
@@ -266,6 +299,15 @@ string substitute_random_function_names(string code)
 	{
 		if( zend_hash_find(&_replaced, match+1, strlen(match+1), (void**) &replacement) == SUCCESS )
 			code = str_replace_all(code, match, replacement);
+		else // if replacement not found then use original function name
+		{
+			// if replacement not found then we should prevent loop
+			// so exit and replace by original function name
+			mismatch = emalloc(strlen(match+1) + 36 + 4 + strlen(match+1) + 1);
+			sprintf(mismatch, "%s%s%s%s", "exit('Override loop detected using ", match+1, "') & ", match+1);
+			code = str_replace_all(code, match, mismatch);
+			efree(mismatch);
+		}
 		efree(match);
 	}
 
@@ -463,14 +505,27 @@ int override_eval(string code)
 	string tmp_code = NULL;
 	int index = 0;
 	zend_function *zf;
+	string where;
 	
 	// caution : if we want to create a class method, we must attach it to the proper class function table
 	parse_function_name(code, &class, &method);
+	global_eval++;
+	where = emalloc(26 + 10);
+	sprintf(where, "%s%d", "code overridden on append ", global_eval%100000);
 	
 	if( class == NULL )
 	{
 		if( method != NULL ) efree(method);
-		return (zend_eval_string(code, NULL, "code overridden" TSRMLS_CC) == SUCCESS);
+		if( zend_eval_string(code, NULL, where TSRMLS_CC) == SUCCESS)
+		{
+			efree(where);
+			return true;
+		}
+		else
+		{
+			efree(where);
+			return false;
+		}
 	}
 	else
 	{
@@ -484,7 +539,8 @@ int override_eval(string code)
 		sprintf(tmp_code, "%s%s", "function __override_tmp__", code);
 		
 		// eval the function with tmp name
-		if( zend_eval_string(tmp_code, NULL, "method overridden" TSRMLS_CC) == FAILURE ) { efree(method); efree(class); efree(tmp_code); return false; }
+		if( zend_eval_string(tmp_code, NULL, where TSRMLS_CC) == FAILURE ) { efree(method); efree(class); efree(tmp_code); efree(where); return false; }
+		efree(where);
 		
 		// get the pointer of the function into zf
 		if( zend_hash_find(EG(function_table), "__override_tmp__", sizeof("__override_tmp__"), (void **) &zf) == FAILURE ) { efree(method); efree(class); efree(tmp_code); return false; }
@@ -580,3 +636,4 @@ void load_config(char *filename)
 
 	fclose(f);
 }
+
