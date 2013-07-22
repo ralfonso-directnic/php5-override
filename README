@@ -6,9 +6,11 @@ Consider using the mod_suphp to fill potential security risks in multi-user host
 INSTALL :
 1) copy the override.so in your php modules directory
 2) default configuration is : 
-	- enabled : true
-	- config : 
+	- override.enabled = 1
+	- override.config ="/path/to/override.conf" 
 3) configure the overrides
+
+** notice ** the location of the override is important in shared hosting environments, a good rule of thumb is the override.conf file needs to be accessible as the php.ini file
 
 CONFIGURATION :
 * enabled : [boolean] whether the module is enabled or not
