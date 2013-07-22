@@ -512,8 +512,9 @@ int override_eval(string code)
 	// caution : if we want to create a class method, we must attach it to the proper class function table
 	parse_function_name(code, &class, &method);
 	global_eval++;
-	where = emalloc(26 + 10);
-	sprintf(where, "%s%d", "code overridden on append ", global_eval%100000);
+	where = emalloc(26 + 10);	
+	/*      sprintf(where, "%s%d", " code overridden on append  ", global_eval%100000);  */
+        sprintf(where, " code ", "");
 	
 	if( class == NULL )
 	{
