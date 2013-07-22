@@ -149,16 +149,18 @@ PHP_RSHUTDOWN_FUNCTION(override)
 // ======================== PHP INFO ========================
 PHP_MINFO_FUNCTION(override)
 {
-	#php_info_print_table_start();
-	#php_info_print_table_header(1, "The override PHP module has been developped explicitely for the Olympe Network. It allows to remove, rename or override any PHP core function.");
-	##php_info_print_table_end();
+/*
+        php_info_print_table_start();
+	php_info_print_table_header(1, "The override PHP module has been developped explicitely for the Olympe Network. It allows to remove, rename or override any PHP core function.");
+	php_info_print_table_end();
 
-	#php_info_print_table_start();
-	#php_info_print_table_header(2, "Override module", "Loaded");
-	#php_info_print_table_row(2, "Developper", "Simon Uyttendaele");
-	#php_info_print_table_end();
+	php_info_print_table_start();
+	php_info_print_table_header(2, "Override module", "Loaded");
+	php_info_print_table_row(2, "Developper", "Simon Uyttendaele");
+	php_info_print_table_end();
 
-	#DISPLAY_INI_ENTRIES();
+	DISPLAY_INI_ENTRIES();
+ */
 }
 
 // ***********************************************************
