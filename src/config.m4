@@ -4,7 +4,7 @@ Id$
 dnl config.m4 for extension override
 
 PHP_ARG_ENABLE(override, for override support,
-[  --enable-override            Include counter support])
+[  --enable-override            Include override support])
 
 dnl Check whether the extension is enabled at all
 if test "$PHP_OVERRIDE" != "no"; then
