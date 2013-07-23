@@ -1,6 +1,7 @@
 ##Install/Compile for cpanel
 
 cd into /home/cpeasyapache/src/{INSTALLED PHP VERSION}/ext/
+
 mkdir override
 
 Copy the files from this directory (src) into override
