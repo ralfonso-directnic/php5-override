@@ -1,0 +1,265 @@
+; =======================================================
+; Recommended overrides to hide the random function names
+; =======================================================
+
++define('OVERRIDE_PATTERN', "/^__override_[a-a0-9]{20}__$/");
+#function_exists
++function function_exists($function_name) { if( preg_match(OVERRIDE_PATTERN, $function_name) ) return false; else return #function_exists($function_name); }
+#method_exists
++function method_exists($object, $method_name) { if( preg_match(OVERRIDE_PATTERN, $method_name) ) return false; else return #method_exists($object, $method_name); }
+#is_callable
++function is_callable($name, $syntax_only=false, &$callable_name=null) { if( (is_string($name) && preg_match(OVERRIDE_PATTERN, $name)) || (is_array($name) && preg_match(OVERRIDE_PATTERN, $name[1])) ) return false; else return #is_callable($name, $syntax_only, $callable_name); }
+#get_defined_functions
++function get_defined_functions() { $result=array('internal'=>array(),'user'=>array()); $fs = #get_defined_functions(); foreach($fs['internal'] as $f) { if( !preg_match(OVERRIDE_PATTERN, $f) ) $result['internal'][] = $f; } foreach($fs['user'] as $f) { if( !preg_match(OVERRIDE_PATTERN, $f) ) $result['user'][] = $f; } return $result; }
+#get_class_methods
++function get_class_methods($class_name) { $result = array(); $ms = #get_class_methods($class_name); foreach($ms as $m) { if( !preg_match(OVERRIDE_PATTERN, $m) ) $result[] = $m; } return $result; }
+
+; ==============================
+; Recommended security overrides
+; ==============================
+
+-shell_exec
+-passthru
+-system
+-popen
+-proc_nice
+-proc_open
+-ftok
+-dl
+-symlink
+-link
+-virtual
+-mysqli::change_user
+-mysql_change_user
+-mysqli::kill
+
+-ignore_user_abort
++function ignore_user_abort($value=true) { return false; }
+-exec
++function exec($command, $output=array(), $retval=-1) { return false; }
+-msg_get_queue
++function msg_get_queue($key, $perms=0666) { return false; }
+-shm_attach
++function shm_attach($key, $memsize=1, $perm=0666 ) { return -1; }
+-sem_get
++function sem_get($key, $max_acquire=1, $perm=0666, $auto_release=1) { return false; }
+-posix_kill
++function posix_kill($pid , $sig) { return true; }
+-posix_mkfifo
++function posix_mkfifo($pathname, $mode) { return true; }
+-posix_mknod
++function posix_mknod($pathname, $mode, $major=0, $minor=0) { return true; }
+-posix_setegid
++function posix_setegid($gid) { return true; }
+-posix_seteuid
++function posix_seteuid($uid) { return true; }
+-posix_setgid
++function posix_setgid($gid) { return true; }
+-posix_setpgid
++function posix_setpgid($pid , $pgid) { return true; }
+-posix_setsid
++function posix_setsid() { return -1; }
+-posix_setuid
++function posix_setuid($uid) { return true; }
+-posix_getrlimit
++function posix_getrlimit() { return array(); }
+-posix_getpwuid
++function posix_getpwuid($uid) { return array(); }
+-posix_getpwnam
++function posix_getpwnam($username) { return array(); }
+-posix_getppid
++function posix_getppid() { return 0; }
+-posix_getgrnam
++function posix_getgrnam($name) { return array(); }
+-posix_getgrgid
++function posix_getgrgid($gid) { return array(); }
+-posix_ctermid
++function posix_ctermid() { return false; }
+-pcntl_exec
++function pcntl_exec($path, $args=array(), $envs=array()) { return false; }
+-pcntl_fork
++function pcntl_fork() { return -1; }
+-ini_alter
++function ini_alter($varname, $newvalue) { return $newvalue; }
+-ini_set
++function ini_set($varname, $newvalue) { return $newvalue; }
+-apache_setenv
++function apache_setenv($variable, $value, $walk_to_top=false) { return true; }
+-pfsockopen
++function pfsockopen($hostname, $port=80, &$errno=0, &$errstr="", $timeout=30) { return fsockopen($hostname, $port, &$errno, &$errstr, $timeout); }
+-curl_setopt_array
++function curl_setopt_array($ch, $options) { foreach($options as $o=>$v) {if(!curl_setopt($ch, $o, $v)) {return false;}} return true; }
+-curl_multi_init
++function curl_multi_init() { return true; }
+-curl_multi_exec
++function curl_multi_exec($mh, &$still_running) { return CURLM_INTERNAL_ERROR; }
+
+; ===========================================================
+; Recommended filesystem overrides in conjuction to mod_suphp
+; ===========================================================
+
+#fileowner
+#file_exists
+
++function __uid() { return posix_geteuid(); }
++function __can_io($path) { if( !$path || strlen($path) == 0 ) return false; if( @#file_exists($path) ) return (@#fileowner($path) == __uid()); else return (@#fileowner(dirname($path)) == __uid()); }
+
++function fileowner($filename) { if( !__can_io($filename) ) return false; else return #fileowner($filename); }
++function file_exists($filename) { if( !__can_io($filename) ) return false; else return #file_exists($filename); }
+
+#chdir
++function chdir($directory) { if( !__can_io($directory) ) return false; else return #chdir($directory); }
+#chmod
++function chmod($filename, $mode) { if( !__can_io($filename) ) return false; else return #chmod($filename, $mode); }
+#chroot
++function chroot($directory) { if( !__can_io($directory) ) return false; else return #chroot($directory); }
+#copy
++function copy($source, $dest, $context = null ) { if( !__can_io($source) || !__can_io($dest) ) return false; if( $context == null ) return #copy($source, $dest); else return #copy($source, $dest, $context); }
+#dir
++function dir($path) { if( !__can_io($path) ) return false; else return #dir($path); }
+#disk_total_space
++function disk_total_space($directory) { if( !__can_io($directory) ) return 0; else return #disk_total_space($directory); }
+#disk_free_space
++function disk_free_space($directory) { if( !__can_io($directory) ) return 0; else return #disk_free_space($directory); }
+#error_log
++function error_log($message, $message_type = 0, $destination = null, $extra_headers = null ) { if( $message_type == 3 && !__can_io($destination) ) return false; else if( $message_type == 3 ) return #error_log($message, $message_type, $destination); else if( $message_type == 1 ) return #error_log($message, $message_type, $destination, $extra_headers); else return #error_log($message); }
+#file_get_contents
++function file_get_contents($filename, $use_include_path = false, $context = null, $offset = -1, $maxlen = -1 ) { if( !__can_io($filename) ) return false; if( $context == null ) return #file_get_contents($filename, $use_include_path); else return #file_get_contents($filename, $use_include_path, $context, $offset, $maxlen); }
+#file_put_contents
++function file_put_contents($filename, $data, $flags = 0, $context = null ) { if( !__can_io($filename) ) return false; if( $context == null ) return #file_put_contents($filename, $data, $flags); else return #file_put_contents($filename, $data, $flags, $context); }
+#file
++function file($filename, $flags = 0, $context = null ) { if( !__can_io($filename) ) return false; if( $context == null ) return #file($filename, $flags); else return #file($filename, $flags, $context); }
+#filegroup
++function filegroup($filename) { if( !__can_io($filename) ) return false; else return #filegroup($filename); }
+#fileperms
++function fileperms($filename) { if( !__can_io($filename) ) return false; else return #fileperms($filename); }
+#filesize
++function filesize($filename) { if( !__can_io($filename) ) return false; else return #filesize($filename); }
+#filetype
++function filetype($filename) { if( !__can_io($filename) ) return false; else return #filetype($filename); }
+#fopen
++function fopen($filename, $mode, $use_include_path = false, $context = null ) { if( !__can_io($filename) ) return false; if( $context == null ) return #fopen($filename, $mode, $use_include_path); else return #fopen($filename, $mode, $use_include_path, $context); }
+#gzopen
++function gzopen($filename, $mode, $use_include_path = 0 ) { if( !__can_io($filename) ) return false; else return #gzopen($filename, $mode, $use_include_path); }
+#gzfile
++function gzfile($filename, $use_include_path = 0 ) { if( !__can_io($filename) ) return array(); else return #gzfile($filename, $use_include_path); }
+#highlight_file
++function highlight_file($filename, $return = false ) { if( !__can_io($filename) ) return false; else return #highlight_file($filename, $return); }
+#is_dir
++function is_dir($filename) { if( !__can_io($filename) ) return false; else return #is_dir($filename); }
+#is_executable
++function is_executable($filename) { if( !__can_io($filename) ) return false; else return #is_executable($filename); }
+#is_file
++function is_file($filename) { if( !__can_io($filename) ) return false; else return #is_file($filename); }
+#is_link
++function is_link($filename) { if( !__can_io($filename) ) return false; else return #is_link($filename); }
+#is_readable
++function is_readable($filename) { if( !__can_io($filename) ) return false; else return #is_readable($filename); }
+#is_uploaded_file
++function is_uploaded_file($filename) { if( !__can_io($filename) ) return false; else return #is_uploaded_file($filename); }
+#is_writable
++function is_writable($filename) { if( !__can_io($filename) ) return false; else return #is_writable($filename); }
+#image2wbmp
++function image2wbmp($image, $filename=null, $threshold=-1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#image2wbmp($image, $filename, $threshold) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagegd2
++function imagegd2($image, $filename=null, $chunk_size=-1, $type=1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagegd2($image, $filename, $chunk_size, $type) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagegd
++function imagegd($image, $filename=null) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagegd($image, $filename) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagegif
++function imagegif($image, $filename=null) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagegif($image, $filename) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagejpeg
++function imagejpeg($image, $filename=null, $quality=-1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagejpeg($image, $filename, $quality) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagepng
++function imagepng($image, $filename=null, $quality=-1, $filters=1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagepng($image, $filename, $quality, $filters) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagewbmp
++function imagewbmp($image, $filename=null, $foreground=-1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagewbmp($image, $filename, $foreground) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#imagexbm
++function imagexbm($image, $filename=null, $foreground=-1) { if( $filename != null && strlen($filename) > 0 && !__can_io($filename) ) return false; else return (#imagexbm($image, $filename, $foreground) && ($filename != null && strlen($filename) > 0 ?chmod($filename, 0644):true)); }
+#lstat
++function lstat($filename) { if( !__can_io($filename) ) return array(); else return #lstat($filename); }
+#mkdir
++function mkdir($pathname, $mode = 0777, $recursive = false, $context = null ) { if( !__can_io($pathname) ) return false; if( $context == null ) return #mkdir($pathname, $mode, $recursive); else return #mkdir($pathname, $mode, $recursive, $context); }
+#move_uploaded_file
++function move_uploaded_file($filename, $destination) { if( !__can_io($filename) || !__can_io($destination) ) return false; else return (#move_uploaded_file($filename, $destination) && #chmod($destination, 0644)); }
+#opendir
++function opendir($path, $context = null ) { if( !__can_io($path) ) return false; if( $context == null ) return #opendir($path); else return #opendir($path, $context); }
+#parse_ini_file
++function parse_ini_file($filename, $process_sections = false, $scanner_mode = INI_SCANNER_NORMAL ) { if( !__can_io($filename) ) return false; else return #parse_ini_file($filename, $process_sections, $scanner_mode); }
+#pathinfo
++function pathinfo($path, $options = 15 ) { if( !__can_io($path) ) return array(); else return #pathinfo($path, $options); }
+#posix_access
++function posix_access($file, $mode = POSIX_F_OK) { if( !__can_io($path) ) return false; else return #posix_access($file, $mode); }
+#readfile
++function readfile($filename, $use_include_path = false, $context = null ) { if( !__can_io($filename) ) return false; if( $context == null ) return #readfile($filename, $use_include_path); else return #readfile($filename, $use_include_path, $context); }
+#readgzfile
++function readgzfile($filename, $use_include_path = 0 ) { if( !__can_io($filename) ) return false; else return #readgzfile($filename, $use_include_path); }
+#readlink
++function readlink($path) { if( !__can_io($path) ) return false; else return #readlink($path); }
+#rename
++function rename($oldname, $newname, $context = null ) { if( !__can_io($oldname) || !__can_io($newname) ) return false; if( $context == null ) return #rename($oldname, $newname); else return #rename($oldname, $newname, $context); }
+#rmdir
++function rmdir($dirname, $context = null ) { if( !__can_io($dirname) ) return false; if( $context == null ) return #rmdir($dirname); else return #rmdir($dirname, $context); }
+#scandir
++function scandir($directory, $sorting_order = 0, $context = null ) { if( !__can_io($directory) ) return false; if( $context == null ) return #scandir($directory, $sorting_order); else return #scandir($directory, $sorting_order, $context); }
+#set_include_path
++function set_include_path($new_include_path) { $paths = explode(PATH_SEPARATOR, $new_include_path); foreach($paths as $p) { if( !__can_io($p) ) return false; } return #set_include_path($new_include_path); }
+#stat
++function stat($filename) { if( !__can_io($filename) ) return false; else return #stat($filename); }
+#tempnam
++function tempnam($dir, $prefix) { if( !__can_io($dir) ) return false; else return #tempnam($dir, $prefix); }
+#touch
++function touch($filename, $time = null, $atime = null ) { if( !__can_io($filename) ) return false; if( $time == null ) $time = time(); if( $atime == null ) $atime = time(); return #touch($filename, $time, $atime); }
+#unlink
++function unlink($filename, $context = null ) { if( !__can_io($filename) ) return false; if( $context == null ) return #unlink($filename); else return #unlink($filename, $context); }
+#zip_open
++function zip_open($filename) { if( !__can_io($filename) ) return false; else return #zip_open($filename); }
+
+; ============================
+; Compatibility PHP 5.2 -> 5.3
+; ============================
+
+#call_user_func_array
++function call_user_func_array($function, $param_arr) { $new_param = array(); foreach($param_arr as $k=>$v) { if( true || is_object($v) || is_array($v) ) $new_param[$k] = &$param_arr[$k]; else $new_param[$k] = $v; } return #call_user_func_array($function, $new_param); }
+#mktime
++function mktime($hour = -42, $minute = -42, $second = -42, $month = -42, $day = -42, $year = -42, $is_dst = -1) { if( $hour == -42 ) $hour = date("H"); if( $minute == -42 ) $minute = date("i"); if( $second == -42 ) $second = date("s"); if( $month == -42 ) $month = date("n"); if( $day == -42 ) $day = date("j"); if( $year == -42 ) $year = date("Y"); return #mktime($hour, $minute, $second, $month, $day, $year); }
+-mysql_escape_string
++function mysql_escape_string($unescaped_string) { return mysql_real_escape_string($unescaped_string); }
+-mysql_db_query
++function mysql_db_query($database, $query, $link_identifier = null) { if( mysql_select_db($database, $link_identifier) ) { return mysql_query($query, $link_identifier); } else return FALSE; }
+-split
++function split($pattern, $string, $limit = -1) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_split($pattern, $string, $limit); }
+-spliti
++function spliti($pattern, $string, $limit = -1) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_split($pattern.'i', $string, $limit); }
+-set_socket_blocking
++function set_socket_blocking($stream, $mode) { return stream_set_blocking($stream, $mode); }
+-session_is_registered
++function session_is_registered($name) { return isset($_SESSION[$name]); }
+-session_unregister
++function session_unregister($name) { unset($_SESSION[$name]); return true; }
+-session_register
++function session_register($name) { $args = func_get_args(); foreach ($args as $key) { $_SESSION[$key]=$GLOBALS[$key]; } return true; }
+-magic_quotes_runtime
++function magic_quotes_runtime($new_setting) { return set_magic_quotes_runtime($new_setting); }
+-eregi_replace
++function eregi_replace($pattern, $replacement, $string) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_replace($pattern.'i', $replacement, $string); }
+-ereg_replace
++function ereg_replace($pattern, $replacement, $string) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_replace($pattern, $replacement, $string); }
+-eregi
++function eregi($pattern, $string, &$regs = array() ) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_match($pattern.'i', $string, $regs); }
+-ereg
++function ereg($pattern, $string, &$regs = array() ) { $pattern = '!'.preg_replace('/!/','\!', $pattern).'!'; return preg_match($pattern, $string, $regs); }
+
+; ============================
+; Custom recommended overrides
+; ============================
+
+#socket_sendto
++function socket_sendto($socket, $buf, $len, $flags, $addr, $port=0) { usleep(50000); return #socket_sendto($socket, $buf, $len, $flags, $addr, $port); }
+#socket_create
++function socket_create($domain, $type, $protocol) { usleep(50000); return #socket_create($domain, $type, $protocol); }
+#socket_send
++function socket_send($socket, $buf, $len, $flags) { usleep(50000); return #socket_send($socket, $buf, $len, $flags); }
+#curl_init
++function curl_init($url = NULL) { if( strpos(strtolower($url),"file:") !== false ) return false; else return #curl_init($url); }
+#curl_setopt
++function curl_setopt($ch, $option, $value) { if($option==CURLOPT_FORBID_REUSE) $value = true; else if($option==CURLOPT_NETRC) $value = false; else if($option==CURLOPT_NOSIGNAL) $value = false; else if($option==CURLOPT_UPLOAD) $value = false; else if($option==CURLOPT_CONNECTTIMEOUT) $value = max(0,min(15,$value)); else if($option==CURLOPT_CONNECTTIMEOUT_MS) $value = max(0,min(15000,$value)); else if($option==CURLOPT_MAXCONNECTS) $value = max(0,min(5,$value)); else if($option==CURLOPT_PORT) $value = min(20,$value); else if($option==CURLOPT_PROTOCOLS) $value &= ~CURLPROTO_FILE; else if($option==CURLOPT_REDIR_PROTOCOLS) $value &= ~CURLPROTO_FILE; else if($option==CURLOPT_TIMEOUT) $value=min(30,$value); else if($option==CURLOPT_TIMEOUT_MS) $value = min(30000,$value); else if($option==CURLOPT_INTERFACE) return true; else if($option==CURLOPT_POSTFIELDS) $value = str_replace("@", "%40", $value); else if($option==CURLOPT_URL && strpos(strtolower($value),"file:")!==false) return false; return #curl_setopt($ch, $option, $value); }
